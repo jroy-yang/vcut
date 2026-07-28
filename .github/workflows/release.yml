@@ -20,15 +20,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            artifact: vcut-linux-x86_64
-            binary_name: vcut
-          - os: macos-latest
-            artifact: vcut-macos-universal2
-            binary_name: vcut
+          # Windows is the primary target — full bundled binary, zero deps
           - os: windows-latest
+            asset: ffmpeg-master-latest-win64-gpl-shared.zip
+            archive_ext: zip
             artifact: vcut-windows-x86_64
             binary_name: vcut.exe
+          # Linux — full bundle with shared ffmpeg libs (lib*.so alongside)
+          - os: ubuntu-latest
+            asset: ffmpeg-master-latest-linux64-gpl-shared.tar.xz
+            archive_ext: tar.xz
+            artifact: vcut-linux-x86_64
+            binary_name: vcut
+          # macOS is intentionally not built here — BtbN/FFmpeg-Builds does
+          # not publish macOS assets. macOS users should `brew install ffmpeg`
+          # and run vcut directly from source, or build their own ffmpeg.
 
     runs-on: ${{ matrix.os }}
 
@@ -47,23 +53,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p vendor/ffmpeg
+          mkdir -p vendor/ffmpeg/bin
 
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            ASSET="ffmpeg-master-latest-win64-gpl-shared.zip"
-            DEST="vendor/ffmpeg/bin"
-            mkdir -p "$DEST"
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            ASSET="ffmpeg-master-latest-macos64-gpl-shared.zip"
-            DEST="vendor/ffmpeg/bin"
-            mkdir -p "$DEST"
-          else
-            # ubuntu-latest
-            ASSET="ffmpeg-master-latest-linux64-gpl-shared.tar.xz"
-            DEST="vendor/ffmpeg/bin"
-            mkdir -p "$DEST"
-          fi
-
+          ASSET="${{ matrix.asset }}"
+          echo "Resolving latest release URL for: $ASSET"
           URL=$(curl -fsSL "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases/latest" \
                 | python -c "import json,sys; rel=json.load(sys.stdin); print([a['browser_download_url'] for a in rel['assets'] if a['name']=='$ASSET'][0])")
           echo "Downloading $URL"
@@ -74,11 +67,11 @@ jobs:
             *.tar.xz) mkdir -p /tmp/ffmpeg-unpacked && tar -xJf /tmp/ffmpeg-bundle -C /tmp/ffmpeg-unpacked ;;
           esac
 
-          # Find the bin/ dir inside the unpacked tree
           BIN_DIR=$(find /tmp/ffmpeg-unpacked -type d -name bin | head -1)
-          cp "$BIN_DIR"/* "$DEST/"
-          chmod +x "$DEST"/ffmpeg "$DEST"/ffprobe 2>/dev/null || true
-          ls -la "$DEST"
+          echo "FFmpeg bin dir: $BIN_DIR"
+          cp "$BIN_DIR"/* vendor/ffmpeg/bin/
+          chmod +x vendor/ffmpeg/bin/ffmpeg vendor/ffmpeg/bin/ffprobe 2>/dev/null || true
+          ls -la vendor/ffmpeg/bin/
 
       - name: Generate icon
         run: python make_icon.py
@@ -93,11 +86,9 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          # Zip up the contents of dist/ for a clean per-OS archive
-          7z a "${{ matrix.artifact }}.zip" ./* >/dev/null 2>&1 || \
-            (which zip && zip -r "${{ matrix.artifact }}.zip" .) || \
-            (echo "No archiver found, using tar"; tar -czf "${{ matrix.artifact }}.tar.gz" .)
-          sha256sum "${{ matrix.artifact }}".* > SHA256SUMS.txt
+          # Wrap the single-file vcut exe in a zip with sha256
+          zip "${{ matrix.artifact }}.zip" "${{ matrix.binary_name }}"
+          sha256sum "${{ matrix.artifact }}.zip" | awk '{print $1}' > "${{ matrix.artifact }}.zip.sha256"
           ls -la
 
       - name: Upload artifacts
@@ -106,9 +97,8 @@ jobs:
           name: ${{ matrix.artifact }}
           path: |
             dist/${{ matrix.artifact }}.zip
-            dist/${{ matrix.artifact }}.tar.gz
-            dist/SHA256SUMS.txt
-          if-no-files-found: warn
+            dist/${{ matrix.artifact }}.zip.sha256
+          if-no-files-found: error
 
   release:
     name: github-release
@@ -127,8 +117,7 @@ jobs:
         with:
           files: |
             artifacts/**/*.zip
-            artifacts/**/*.tar.gz
-            artifacts/**/SHA256SUMS.txt
+            artifacts/**/*.sha256
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: *** secrets.GITHUB_TOKEN }}

@@ -115,19 +115,22 @@ FFMPEG_DIR = Path.home() / "Downloads" / "ffmpeg-gpl" / "ffmpeg-master-latest-wi
 
 ### 跨平台打包(自动)
 
-推一个 tag 就能三平台出包。详细见 [.github/workflows/release.yml](.github/workflows/release.yml):
+推一个 tag 就能出包。详细见 [.github/workflows/release.yml](.github/workflows/release.yml):
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-GitHub Actions 会在 **ubuntu-latest / macos-latest / windows-latest** 三个 runner 同时打包,产物:
-- `vcut-linux-x86_64.zip`
-- `vcut-macos-universal2.zip` (Intel + Apple Silicon)
-- `vcut-windows-x86_64.zip`
+GitHub Actions 会在两个 runner 同时打包,产物:
+- `vcut-windows-x86_64.zip` — 优先目标,内嵌 ffmpeg,零依赖
+- `vcut-linux-x86_64.zip` — 同样内嵌 ffmpeg,共享库方式
 
-三个 runner 各自下载对应平台的 ffmpeg,用同一份源码打三个独立二进制。手动触发:`Actions → release → Run workflow`。
+**macOS 不在 CI 范围内。**[BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) 不发布 macOS 预编译二进制,macOS 用户需要:
+1. `brew install ffmpeg` 装系统 ffmpeg,vcut 会自动检测
+2. 或者直接从 `vcut.py` 源码运行 (`python3 vcut.py`)
+
+手动触发:`Actions → release → Run workflow`。
 
 ### 本地发布脚本
 
