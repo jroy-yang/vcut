@@ -1,0 +1,36 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# --- Build artifacts ---
+build/
+dist/
+*.spec
+
+# --- vcut runtime ---
+# (these live in %USERPROFILE%\.vcut\ anyway, never in repo)
+*.tmp
+
+# --- Local-only ffmpeg downloads ---
+ffmpeg-lite/
+ffmpeg-gpl/
+*.zip
+*.tar.xz
+*.tar.gz
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Secrets (NEVER commit) ---
+*.pem
+*.key
+*.token
+GITHUB*.txt
+secrets.*
