@@ -84,6 +84,8 @@ jobs:
         run: python make_icon.py
 
       - name: Build executable
+        env:
+          VCUT_FFMPEG_BIN: ${{ github.workspace }}/vendor/ffmpeg/bin
         run: python build.py
 
       - name: Package release
