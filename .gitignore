@@ -1,0 +1,28 @@
+# Build artifacts
+dist/
+_stage/
+*.zip
+*.exe
+
+# PowerShell
+*.ps1.bak
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test/debug
+demo-test/
+debug-redaction.ps1
+precheck-bcd.ps1
+
+# Env
+.env
+.env.local

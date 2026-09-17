@@ -1,0 +1,63 @@
+# .github/workflows/ci.yml
+# Trigger: PR / push to main → 跑 10 项安全自检 + 编译验证
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Self-check + Build
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show PS version
+        run: $PSVersionTable | Format-List
+
+      - name: Install ps2exe
+        shell: powershell
+        run: |
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -ErrorAction SilentlyContinue
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name ps2exe -Scope CurrentUser -Force -SkipPublisherCheck -Confirm:$false -AllowClobber
+
+      - name: Run 10-test self-check
+        run: ./self-check.ps1
+
+      - name: Compile .exe (smoke test)
+        run: ./build-exe.ps1
+
+      - name: Verify .exe binaries exist
+        run: |
+          $missing = Get-ChildItem dist -Filter '*.exe' -ErrorAction SilentlyContinue | Where-Object { -not (Test-Path $_.FullName) }
+          if ($missing) { throw "Missing .exe: $($missing.Name)" }
+          Get-ChildItem dist -Filter '*.exe' | ForEach-Object {
+            $size = $_.Length
+            if ($size -lt 10000) { throw "$($_.Name) too small ($size bytes)" }
+            Write-Host "::notice::$($_.Name) size = $($size) bytes"
+          }
+
+      - name: Smoke-test probe2 (no actual network call)
+        run: |
+          $result = & './probe2.ps1' 2>&1
+          if ($LASTEXITCODE -eq 0) { Write-Host "::notice::probe2.ps1 parsed OK" }
+          $result | Select-Object -First 3
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-build-${{ github.sha }}
+          path: |
+            dist/*.exe
+          retention-days: 7

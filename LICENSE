@@ -1,0 +1,37 @@
+MIT License
+
+Copyright (c) 2026 webpath-scan contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ADDITIONAL TERMS (REQUIRED FOR COMMERCIAL USE):
+
+This tool is intended ONLY for testing systems you own or have explicit
+written authorization to test. Unauthorized use against systems you do not
+own or have permission to test may violate:
+  - Computer Fraud and Abuse Act (CFAA, US, 18 U.S.C. § 1030)
+  - PRC Cybersecurity Law (《网络安全法》)
+  - PRC Criminal Law Article 285 (《刑法》第285条)
+  - EU Directive 2013/40/EU on attacks against information systems
+  - Other applicable local laws
+
+The authors and contributors disclaim all responsibility for misuse of this
+tool. By downloading, installing, or using this software, you agree to use
+it only in a lawful manner and only against systems you are authorized to
+test.

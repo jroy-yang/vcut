@@ -1,0 +1,133 @@
+# .github/workflows/release.yml
+# Trigger: 推送 v* 标签 (e.g., v1.1) → 自动编译 .exe + 打包 ZIP + 创建 GitHub Release
+# Manual:  Actions 页面 → Run workflow
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., 1.1)'
+        required: true
+        default: '1.1'
+
+permissions:
+  contents: write   # 创建 release 需要
+
+jobs:
+  build:
+    name: Build .exe + Package
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show environment
+        run: |
+          Write-Host "::group::Environment"
+          $PSVersionTable | Format-List
+          "OS: $((Get-CimInstance Win32_OperatingSystem).Caption)"
+          "Arch: $env:PROCESSOR_ARCHITECTURE"
+          Write-Host "::endgroup::"
+
+      - name: Install ps2exe module
+        shell: powershell
+        run: |
+          Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -ErrorAction SilentlyContinue
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name ps2exe -Scope CurrentUser -Force -SkipPublisherCheck -Confirm:$false -AllowClobber
+          Get-Module -ListAvailable -Name ps2exe
+
+      - name: Run security self-check
+        run: ./self-check.ps1
+
+      - name: Compile probes to .exe
+        run: ./build-exe.ps1
+
+      - name: Package ZIP
+        run: ./build-release.ps1
+
+      - name: Compute checksums
+        run: |
+          $zip = Get-Item "../webpath-scan_${{ github.ref_name }}.zip"
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash
+          "ZIP_SHA256=$hash" | Out-File -Encoding utf8 -Append $env:GITHUB_ENV
+          Write-Host "::notice::${{ github.ref_name }} ZIP SHA-256: $hash"
+
+      - name: Verify .exe size sanity
+        run: |
+          Get-ChildItem dist -Filter '*.exe' | ForEach-Object {
+            $size = $_.Length
+            if ($size -lt 10000) { throw "Suspicious .exe size: $size" }
+            Write-Host "::notice::$($_.Name) size = $size bytes"
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: webpath-scan-binaries
+          path: |
+            dist/*.exe
+            ../webpath-scan_${{ github.ref_name }}.zip
+            SHA256SUMS.txt
+          retention-days: 30
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          $zipSha  = $env:ZIP_SHA256
+          $notes = @"
+          # webpath-scan v$version
+
+          PowerShell-based web path discovery + response capture, with v1.1 security hardening.
+
+          ## Highlights
+          - **SSRF defense** — blocks private IPs
+          - **Secret redaction** — auto-masks api_key, password, JWT, etc.
+          - **PATH-hijack safe** — uses absolute path to curl.exe
+          - **DoS guard** — minimum 50 ms between requests
+          - **MIT licensed** + "authorized testing only" terms
+
+          ## Quick Start
+          ````powershell
+          # Legal demo: scanme.nmap.org (Nmap's authorized test server)
+          .\probe2.exe -Demo
+
+          # Custom target
+          .\probe.exe -Target 'example.com' -Throttle 5
+          ````
+
+          ## SHA-256
+          ````
+          $zipSha  webpath-scan_v$version.zip
+          ````
+
+          ## License
+          MIT — see LICENSE. **Authorized testing only.**
+          "@
+          $notes | Out-File "RELEASE_NOTES.md" -Encoding utf8
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: webpath-scan ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            ../webpath-scan_${{ github.ref_name }}.zip
+            SHA256SUMS.txt
+            dist/probe.exe
+            dist/probe2.exe
+            dist/probe3.exe
+            dist/probe4.exe
